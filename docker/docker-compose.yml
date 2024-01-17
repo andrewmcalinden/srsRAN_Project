@@ -21,6 +21,21 @@
 version: '3.9'
 
 services:
+  ue:
+    build:
+      context: srsRAN_4G
+    tty: true
+    command: /bin/bash #ip netns add ue1 && ./home/srsue ue_config.yml
+    privileged: true
+    depends_on:
+      gnb:
+        condition: service_healthy
+    configs:
+      - ue_config.yml
+    networks:
+      ran:
+        ipv4_address: ${UE_IP:-10.53.1.4} 
+   
   5gc:
     container_name: open5gs_5gc
     build:
@@ -73,6 +88,12 @@ services:
     # Its content would be the value of the file used to create the config
     configs:
       - gnb_config.yml
+
+    healthcheck:
+      test: [ "CMD-SHELL", "grep '\\[zmq:tx:0:0] \\[I] Waiting for request.' /tmp/gnb.log" ]
+      interval: 3s
+      timeout: 1s
+      retries: 60
     # Customize your desired network mode.
     # current netowrk configuration creastes a private netwoek with both containers attached
     # An alterantive would be `network: host"`. That would expose your host network into the container. It's the easiest to use if the 5gc is not in your PC
@@ -141,7 +162,9 @@ services:
 
 configs:
   gnb_config.yml:
-    file: ${GNB_CONFIG_PATH:-../configs/gnb_rf_b200_tdd_n78_20mhz.yml} # Path to your desired config file
+    file: ${GNB_CONFIG_PATH:-../configs/zmq.yml} # Path to your desired config file
+  ue_config.yml:
+    file: ${UE_CONFIG_PATH:-srsRAN_4G/zmq.conf} # Path to your desired config file
 
 volumes:
   gnb-storage:
